@@ -106,25 +106,17 @@ const digits = "0123456789";
 const symbols = "!@#$%^&*()-_=+[]{};:'\"\\|,.<>/?`~";
 
 function downloadCrack() {
-  const rawKey = document.getElementById("key").innerText;
-  const ct = document.getElementById("encrypted").innerText;
-
-  if (!rawKey || !ct) {
+  if (!lastBlob) {
     alert("Nothing to save yet.");
     return;
   }
 
-  const fileData = {
-    ct: ct,
-    key: rawKey
-  };
-
-  const blob = new Blob(
-    [JSON.stringify(fileData, null, 2)],
+  const file = new Blob(
+    [JSON.stringify(lastBlob, null, 2)],
     { type: "application/json" }
   );
 
-  const url = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(file);
 
   const a = document.createElement("a");
   a.href = url;
@@ -145,26 +137,25 @@ function loadCrackFile(event) {
     try {
       const data = JSON.parse(e.target.result);
 
-      
+      console.log("Loaded file:", data);
+
       if (!data.ct || !data.iv || !data.jwk || !data.chaos) {
-        alert("Corrupted .crack file");
+        alert("Corrupted .crack file (missing fields)");
         return;
       }
 
       document.getElementById("encrypted").innerText = data.ct;
-      document.getElementById("keyInput").value = btoa(JSON.stringify(data));
+      document.getElementById("keyInput").value = JSON.stringify(data);
 
-      document.getElementById("status").innerText =
-        "Loaded ✔ Ready to decrypt";
+      alert("Loaded successfully ✔ Ready to decrypt");
 
     } catch (err) {
-      alert("Invalid .crack file");
+      alert("Invalid JSON .crack file");
     }
   };
 
   reader.readAsText(file);
 }  
-  
 
 function shuffle(str){
   return str.split('').sort(()=>Math.random()-0.5).join('');
@@ -274,19 +265,22 @@ async function encrypt(){
     new TextEncoder().encode(chaos.step2)
   );
 
-  let jwk=await crypto.subtle.exportKey("jwk",key);
+let jwk = await crypto.subtle.exportKey("jwk", key);
 
-  let blob={
-    ct:toB64(new Uint8Array(ct)),
-    iv:toB64(iv),
-    jwk,
-    chaos
-  };
+let blob = {
+  ct: toB64(new Uint8Array(ct)),
+  iv: toB64(iv),
+  jwk,
+  chaos
+};
 
-  lastBlob = blob;
+lastBlob = blob;
 
-  document.getElementById("encrypted").innerText=blob.ct;
-  document.getElementById("key").innerText=btoa(JSON.stringify(blob));
+
+document.getElementById("encrypted").innerText = blob.ct;
+
+
+document.getElementById("key").innerText = JSON.stringify(blob);
 
   console.assert(text.length>=0,"input ok");
   console.assert(blob.ct.length>0,"cipher ok");
