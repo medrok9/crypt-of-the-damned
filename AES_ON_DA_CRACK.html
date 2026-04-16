@@ -104,37 +104,34 @@ const alphabet = "abcdefghijklmnopqrstuvwxyz";
 const digits = "0123456789";
 const symbols = "!@#$%^&*()-_=+[]{};:'\"\\|,.<>/?`~";
 
-  function downloadCrack() {
-  const encrypted = document.getElementById("encrypted").innerText;
-  const key = document.getElementById("key").innerText;
+function downloadCrack() {
+  const rawKey = document.getElementById("key").innerText;
+  const ct = document.getElementById("encrypted").innerText;
 
-  if (!encrypted || !key) {
-    alert("Nothing to download yet.");
+  if (!rawKey || !ct) {
+    alert("Nothing to save yet.");
     return;
   }
 
-  const payload = {
-    encrypted,
-    key,
-    version: 1
+  const fileData = {
+    ct: ct,
+    key: rawKey
   };
 
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: "application/octet-stream"
-  });
+  const blob = new Blob(
+    [JSON.stringify(fileData, null, 2)],
+    { type: "application/json" }
+  );
 
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
   a.download = "message.crack";
-  document.body.appendChild(a);
   a.click();
 
-  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-
 
   
 function loadCrackFile(event) {
@@ -147,18 +144,28 @@ function loadCrackFile(event) {
     try {
       const data = JSON.parse(e.target.result);
 
-      document.getElementById("encrypted").innerText = data.encrypted || "";
-      document.getElementById("key").innerText = data.key || "";
+      if (!data.ct || !data.key) {
+        alert("Invalid .crack file");
+        return;
+      }
 
-      alert("File loaded successfully!");
+      
+      document.getElementById("encrypted").innerText = data.ct;
+      document.getElementById("keyInput").value = data.key;
+
+      
+      document.getElementById("input").value = "";
+
+      document.getElementById("status").innerText =
+        "Loaded ✔ Ready to decrypt";
+
     } catch (err) {
-      alert("Invalid .crack file");
+      alert("Corrupted .crack file");
     }
   };
 
   reader.readAsText(file);
 }
-
   
   
 
