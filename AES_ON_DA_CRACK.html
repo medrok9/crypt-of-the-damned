@@ -148,7 +148,10 @@ function loadCrackFile(event) {
 
    
       document.getElementById("keyInput").value =
-        btoa(JSON.stringify(data));
+  data.ct + "|" + data.iv + "|" + btoa(JSON.stringify({
+    jwk: data.jwk,
+    chaos: data.chaos
+  }));
 
       document.getElementById("status").innerText =
         "Loaded ✔ Ready to decrypt";
@@ -292,26 +295,51 @@ document.getElementById("key").innerText = JSON.stringify(blob);
 }
 
 async function decrypt(){
-  let raw=document.getElementById("keyInput").value;
-  let blob=JSON.parse(atob(raw));
+  let raw = document.getElementById("keyInput").value;
 
-  let key=await crypto.subtle.importKey(
-    "jwk",blob.jwk,{name:"AES-GCM"},true,["decrypt"]
+  // 🔑 split custom key format
+  let parts = raw.split("|");
+
+  if (parts.length !== 3) {
+    alert("Invalid key format");
+    return;
+  }
+
+  let ct = parts[0];
+  let iv = parts[1];
+
+  let decoded = JSON.parse(atob(parts[2]));
+  let jwk = decoded.jwk;
+  let chaosData = decoded.chaos;
+
+  // import AES key
+  let key = await crypto.subtle.importKey(
+    "jwk",
+    jwk,
+    { name: "AES-GCM" },
+    true,
+    ["decrypt"]
   );
 
-  let iv=fromB64(blob.iv);
-  let ct=fromB64(blob.ct);
+  
+  let ivBytes = fromB64(iv);
+  let ctBytes = fromB64(ct);
 
-  let dec=await crypto.subtle.decrypt(
-    {name:"AES-GCM",iv},key,ct
+  
+  let dec = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: ivBytes },
+    key,
+    ctBytes
   );
 
-  let chaosText=new TextDecoder().decode(dec);
-  let out=chaosDecrypt(chaosText,blob.chaos);
+  let chaosText = new TextDecoder().decode(dec);
 
-  document.getElementById("decrypted").innerText=out;
+ 
+  let out = chaosDecrypt(chaosText, chaosData);
 
-  console.assert(out.length>=0,"decrypt ok");
+  document.getElementById("decrypted").innerText = out;
+
+  console.assert(out.length >= 0, "decrypt ok");
 }
 
 function copyOutput(id) {
