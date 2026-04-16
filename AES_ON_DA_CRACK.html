@@ -104,20 +104,33 @@ const alphabet = "abcdefghijklmnopqrstuvwxyz";
 const digits = "0123456789";
 const symbols = "!@#$%^&*()-_=+[]{};:'\"\\|,.<>/?`~";
 
-  function downloadCrack() {
+ function downloadCrack() {
   const encrypted = document.getElementById("encrypted").innerText;
   const key = document.getElementById("key").innerText;
 
   if (!encrypted || !key) {
-    alert("Nothing to download yet.");
+    alert("Nothing to save yet.");
     return;
   }
 
   const payload = {
-    encrypted,
-    key,
-    version: 1
+    encrypted: encrypted,
+    key: key
   };
+
+  const blob = new Blob([JSON.stringify(payload)], {
+    type: "application/json"
+  });
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "message.crack";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/octet-stream"
@@ -147,15 +160,24 @@ function loadCrackFile(event) {
     try {
       const data = JSON.parse(e.target.result);
 
-      // ONLY feed decrypt system inputs
-      document.getElementById("input").value = data.encrypted || "";
-      document.getElementById("keyInput").value = data.key || "";
+      if (!data.encrypted || !data.key) {
+        alert("Corrupt .crack file");
+        return;
+      }
 
-      alert("Loaded! Ready to decrypt.");
+
+      document.getElementById("input").value = data.encrypted;
+      document.getElementById("keyInput").value = data.key;
+
+      alert("Loaded successfully — ready to decrypt");
     } catch (err) {
-      alert("Invalid .crack file");
+      console.error(err);
+      alert("Invalid .crack file format");
     }
   };
+
+  reader.readAsText(file);
+}
 
   reader.readAsText(file);
 }
