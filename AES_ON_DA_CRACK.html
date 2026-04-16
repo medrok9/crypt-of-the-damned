@@ -96,6 +96,9 @@ button:active {
 <div class="output"><b>Encrypted text:</b><br><span id="encrypted"></span></div>
 <div class="output"><b>Key:</b><br><span id="key"></span></div>
 <div class="output"><b>Decrypted text:</b><br><span id="decrypted"></span></div>
+
+<div class="output"><b>Status:</b><br><span id="status">Idle</span></div>
+  
 <p class="small">Fixed AES-GCM + chaos layer (TM) + correct IV/base64 handling</p>
 </div>
 
@@ -279,8 +282,64 @@ function fromB64(b64){
   return Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
 }
 
-async function encrypt(){
-  let text=document.getElementById("input").value;
+async function encrypt() {
+  const status = document.getElementById("status");
+
+  try {
+    status.innerText = "Encrypting...";
+
+    let text = document.getElementById("input").value;
+
+    if (!text) {
+      status.innerText = "Error: No input text";
+      return;
+    }
+
+    let chaos = chaosEncrypt(text);
+
+    if (!chaos || !chaos.step2) {
+      status.innerText = "Error: Chaos layer failed";
+      return;
+    }
+
+    let key = await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+
+    let iv = crypto.getRandomValues(new Uint8Array(12));
+
+    let encoded = new TextEncoder().encode(chaos.step2);
+
+    let ct = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      encoded
+    );
+
+    let jwk = await crypto.subtle.exportKey("jwk", key);
+
+    let blob = {
+      ciphertext: toB64(new Uint8Array(ct)),
+      key: btoa(JSON.stringify({ jwk, chaos }))
+    };
+
+    document.getElementById("encrypted").innerText = blob.ciphertext;
+    document.getElementById("key").innerText = blob.key;
+
+    status.innerText = "Encrypt success ✔";
+
+  } catch (err) {
+    
+    document.getElementById("status").innerText =
+      "ERROR: " + (err?.message || err);
+
+    console.error("Encrypt failed:", err);
+  }
+}
+
+  
 
   let chaos=chaosEncrypt(text);
 
