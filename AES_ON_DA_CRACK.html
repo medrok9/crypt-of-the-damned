@@ -79,7 +79,11 @@ button:active {
 <h2>AES on Crack 🔐</h2>
 <textarea id="input" placeholder="Enter text..."></textarea>
 <div class="row">
-<button onclick="encrypt()">Encrypt</button>
+  
+<button onclick="document.getElementById('status').innerText='BUTTON CLICKED'">
+  Encrypt
+</button>
+  
 <button onclick="decrypt()">Decrypt</button>
 <button onclick="downloadCrack()">Download .crack File</button>
   <button onclick="document.getElementById('crackFileInput').click()">
