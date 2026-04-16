@@ -100,31 +100,41 @@ button:active {
 </div>
 
 <script>
-  let lastBlob = null;
 const alphabet = "abcdefghijklmnopqrstuvwxyz";
 const digits = "0123456789";
 const symbols = "!@#$%^&*()-_=+[]{};:'\"\\|,.<>/?`~";
 
-function downloadCrack() {
-  if (!lastBlob) {
-    alert("Nothing to save yet.");
+  function downloadCrack() {
+  const encrypted = document.getElementById("encrypted").innerText;
+  const key = document.getElementById("key").innerText;
+
+  if (!encrypted || !key) {
+    alert("Nothing to download yet.");
     return;
   }
 
-  const file = new Blob(
-    [JSON.stringify(lastBlob, null, 2)],
-    { type: "application/json" }
-  );
+  const payload = {
+    encrypted,
+    key,
+    version: 1
+  };
 
-  const url = URL.createObjectURL(file);
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/octet-stream"
+  });
+
+  const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
   a.download = "message.crack";
+  document.body.appendChild(a);
   a.click();
 
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
 
   
 function loadCrackFile(event) {
@@ -137,28 +147,21 @@ function loadCrackFile(event) {
     try {
       const data = JSON.parse(e.target.result);
 
-      if (!data.ct || !data.iv || !data.payload) {
-        alert("Invalid .crack file");
-        return;
-      }
+      document.getElementById("encrypted").innerText = data.encrypted || "";
+      document.getElementById("key").innerText = data.key || "";
 
-      document.getElementById("encrypted").innerText = data.ct;
-
-    
-      document.getElementById("keyInput").value =
-        data.ct + "|" + data.iv + "|" + data.payload;
-
-      document.getElementById("status").innerText =
-        "Loaded ✔ Ready to decrypt";
-
+      alert("File loaded successfully!");
     } catch (err) {
-      alert("Corrupted file");
+      alert("Invalid .crack file");
     }
   };
 
   reader.readAsText(file);
 }
+
   
+  
+
 function shuffle(str){
   return str.split('').sort(()=>Math.random()-0.5).join('');
 }
@@ -267,75 +270,45 @@ async function encrypt(){
     new TextEncoder().encode(chaos.step2)
   );
 
-let jwk = await crypto.subtle.exportKey("jwk", key);
+  let jwk=await crypto.subtle.exportKey("jwk",key);
 
-let blob = {
-  ct: toB64(new Uint8Array(ct)),
-  iv: toB64(iv),
-  payload: btoa(JSON.stringify({
+  let blob={
+    ct:toB64(new Uint8Array(ct)),
+    iv:toB64(iv),
     jwk,
     chaos
-  }))
-};
+  };
 
-lastBlob = blob;
-
-
-document.getElementById("encrypted").innerText = blob.ct;
-
-
-document.getElementById("key").innerText = JSON.stringify(blob);
+  document.getElementById("encrypted").innerText=blob.ct;
+  document.getElementById("key").innerText=btoa(JSON.stringify(blob));
 
   console.assert(text.length>=0,"input ok");
   console.assert(blob.ct.length>0,"cipher ok");
 }
 
 async function decrypt(){
-  let raw = document.getElementById("keyInput").value;
+  let raw=document.getElementById("keyInput").value;
+  let blob=JSON.parse(atob(raw));
 
-  // 🔑 split custom key format
-  let parts = raw.split("|");
-
-  if (parts.length !== 3) {
-    alert("Invalid key format");
-    return;
-  }
-
-  let ct = parts[0];
-  let iv = parts[1];
-
-  let decoded = JSON.parse(atob(parts[2]));
-  let jwk = decoded.jwk;
-  let chaosData = decoded.chaos;
-
-  // import AES key
-  let key = await crypto.subtle.importKey(
-    "jwk",
-    jwk,
-    { name: "AES-GCM" },
-    true,
-    ["decrypt"]
+  let key=await crypto.subtle.importKey(
+    "jwk",blob.jwk,{name:"AES-GCM"},true,["decrypt"]
   );
 
-  let ivBytes = fromB64(iv);
-  let ctBytes = fromB64(ct);
+  let iv=fromB64(blob.iv);
+  let ct=fromB64(blob.ct);
 
-  let dec = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: ivBytes },
-    key,
-    ctBytes
+  let dec=await crypto.subtle.decrypt(
+    {name:"AES-GCM",iv},key,ct
   );
 
-  let chaosText = new TextDecoder().decode(dec);
+  let chaosText=new TextDecoder().decode(dec);
+  let out=chaosDecrypt(chaosText,blob.chaos);
 
-  let out = chaosDecrypt(chaosText, chaosData);
+  document.getElementById("decrypted").innerText=out;
 
-  document.getElementById("decrypted").innerText = out;
-
-  console.assert(out.length >= 0, "decrypt ok");
+  console.assert(out.length>=0,"decrypt ok");
 }
 
-  
 function copyOutput(id) {
   const text = document.getElementById(id).innerText || "";
 
