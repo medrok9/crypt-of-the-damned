@@ -147,21 +147,18 @@ function loadCrackFile(event) {
     try {
       const data = JSON.parse(e.target.result);
 
-     
+      // ONLY feed decrypt system inputs
       document.getElementById("input").value = data.encrypted || "";
-
-    
       document.getElementById("keyInput").value = data.key || "";
 
-  
-      document.getElementById("encrypted").innerText = data.encrypted || "";
-      document.getElementById("key").innerText = data.key || "";
-
-      alert("Loaded .crack file successfully!");
+      alert("Loaded! Ready to decrypt.");
     } catch (err) {
       alert("Invalid .crack file");
     }
   };
+
+  reader.readAsText(file);
+}
 
   reader.readAsText(file);
 }
