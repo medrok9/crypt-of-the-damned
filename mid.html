@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custom Encryptor</title>
+<style>
+body {
+  font-family: Inter, Arial, sans-serif;
+  background: linear-gradient(135deg, #1e1e2f, #3a3a6a);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+.container {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+  border-radius: 18px;
+  width: 420px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+}
+h2 { margin-top: 0; }
+textarea, input {
+  width: 100%;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  border: none;
+  padding: 10px;
+}
+button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border: none;
+  border-radius: 10px;
+  background: #ff4b5c;
+  color: white;
+  font-size: 15px;
+  cursor: pointer;
+}
+button:hover { background: #ff1f3a; }
+.row { display: flex; gap: 8px; }
+.output {
+  margin-top: 10px;
+  font-size: 13px;
+  word-wrap: break-word;
+  background: rgba(0,0,0,0.25);
+  padding: 8px;
+  border-radius: 8px;
+}
+.small { font-size: 12px; opacity: 0.8; }
+</style>
+</head>
+<body>
+<div class="container">
+<h2>Custom Encryptor</h2>
+<textarea id="input" placeholder="Enter text..."></textarea>
+<div class="row">
+<button onclick="encrypt()">Encrypt</button>
+<button onclick="decrypt()">Decrypt</button>
+</div>
+<input id="keyInput" placeholder="Paste key for decryption">
+<div class="row">
+<button onclick="copyText('encrypted')">Copy Encrypted</button>
+<button onclick="copyText('key')">Copy Key</button>
+</div>
+<div class="output"><b>Encrypted:</b><br><span id="encrypted"></span></div>
+<div class="output"><b>Key:</b><br><span id="key"></span></div>
+<div class="output"><b>Decrypted:</b><br><span id="decrypted"></span></div>
+<p class="small">Supports uppercase, numbers, and symbols. Clipboard fallback included.</p>
+</div>
+
+<script>
+const alphabet = "abcdefghijklmnopqrstuvwxyz";
+const alphabetUpper = alphabet.toUpperCase();
+const digits = "0123456789";
+const symbols = "!@#$%^&*()-_=+[]{};:'\"\\|,.<>/?`~";
+
+function shuffle(str) {
+  return str.split('').sort(() => Math.random() - 0.5).join('');
+}
+
+function randomString(length) {
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += alphabet[Math.floor(Math.random() * 26)];
+  }
+  return result;
+}
+
+function randomSymbolString(length) {
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += symbols[Math.floor(Math.random() * symbols.length)];
+  }
+  return result;
+}
+
+function randomNumbers(length) {
+  return Array.from({length}, () => Math.floor(Math.random() * 100));
+}
+
+function vigenere(text, key, alphaLower, decrypt=false) {
+  let alphaUpper = alphaLower.toUpperCase();
+  let result = '';
+
+  for (let i = 0; i < text.length; i++) {
+    let c = text[i];
+    let k = key[i];
+
+    let idxLower = alphaLower.indexOf(c);
+    let idxUpper = alphaUpper.indexOf(c);
+    let kIdx = alphaLower.indexOf(k);
+
+    if (idxLower !== -1) {
+      let val = decrypt ? (idxLower - kIdx + 26) % 26 : (idxLower + kIdx) % 26;
+      result += alphaLower[val];
+    } else if (idxUpper !== -1) {
+      let val = decrypt ? (idxUpper - kIdx + 26) % 26 : (idxUpper + kIdx) % 26;
+      result += alphaUpper[val];
+    } else {
+      result += c;
+    }
+  }
+  return result;
+}
+
+function encrypt() {
+  let text = document.getElementById("input").value;
+
+  let alpha1 = shuffle(alphabet);
+  let vigKey = randomString(text.length);
+  let symKey = randomSymbolString(text.length);
+
+  let step1 = '';
+  for (let i = 0; i < text.length; i++) {
+    let c = text[i];
+
+    if (alphabet.includes(c) || alphabetUpper.includes(c)) {
+      step1 += vigenere(c, vigKey[i], alpha1);
+    } else if (symbols.includes(c)) {
+      let idx = symbols.indexOf(c);
+      let kIdx = symbols.indexOf(symKey[i]);
+      step1 += symbols[(idx + kIdx) % symbols.length];
+    } else {
+      step1 += c;
+    }
+  }
+
+  let alpha2 = shuffle(alphabet);
+  let alpha2Upper = alpha2.toUpperCase();
+  let nums = randomNumbers(step1.length);
+
+  let step2 = '';
+  for (let i = 0; i < step1.length; i++) {
+    let c = step1[i];
+    let idxLower = alpha2.indexOf(c);
+    let idxUpper = alpha2Upper.indexOf(c);
+    let shift = nums[i] % 26;
+
+    if (idxLower !== -1) {
+      let idx = (i % 2 === 0) ? (idxLower + shift) % 26 : (idxLower - shift + 26) % 26;
+      step2 += alpha2[idx];
+    } else if (idxUpper !== -1) {
+      let idx = (i % 2 === 0) ? (idxUpper + shift) % 26 : (idxUpper - shift + 26) % 26;
+      step2 += alpha2Upper[idx];
+    } else {
+      let dIdx = digits.indexOf(c);
+      if (dIdx !== -1) {
+        let dShift = nums[i] % 10;
+        let newIdx = (i % 2 === 0) ? (dIdx + dShift) % 10 : (dIdx - dShift + 10) % 10;
+        step2 += digits[newIdx];
+      } else {
+        step2 += c;
+      }
+    }
+  }
+
+  let caesar = Math.floor(Math.random() * 26);
+  let final = '';
+
+  for (let c of step2) {
+    let idxLower = alphabet.indexOf(c);
+    let idxUpper = alphabetUpper.indexOf(c);
+
+    if (idxLower !== -1) {
+      final += alphabet[(idxLower + caesar) % 26];
+    } else if (idxUpper !== -1) {
+      final += alphabetUpper[(idxUpper + caesar) % 26];
+    } else {
+      let dIdx = digits.indexOf(c);
+      if (dIdx !== -1) {
+        final += digits[(dIdx + (caesar % 10)) % 10];
+      } else {
+        final += c;
+      }
+    }
+  }
+
+  let keyObj = { alpha1, vigKey, symKey, alpha2, nums, caesar };
+  let keyEncoded = btoa(JSON.stringify(keyObj));
+
+  document.getElementById("encrypted").innerText = final;
+  document.getElementById("key").innerText = keyEncoded;
+}
+
+function decrypt() {
+  let text = document.getElementById("input").value;
+  let keyEncoded = document.getElementById("keyInput").value;
+  if (!keyEncoded) return alert("Need key");
+
+  let { alpha1, vigKey, symKey, alpha2, nums, caesar } = JSON.parse(atob(keyEncoded));
+  let alpha2Upper = alpha2.toUpperCase();
+
+  let step2 = '';
+  for (let c of text) {
+    let idxLower = alphabet.indexOf(c);
+    let idxUpper = alphabetUpper.indexOf(c);
+
+    if (idxLower !== -1) {
+      step2 += alphabet[(idxLower - caesar + 26) % 26];
+    } else if (idxUpper !== -1) {
+      step2 += alphabetUpper[(idxUpper - caesar + 26) % 26];
+    } else {
+      let dIdx = digits.indexOf(c);
+      if (dIdx !== -1) {
+        step2 += digits[(dIdx - (caesar % 10) + 10) % 10];
+      } else {
+        step2 += c;
+      }
+    }
+  }
+
+  let step1 = '';
+  for (let i = 0; i < step2.length; i++) {
+    let c = step2[i];
+    let idxLower = alpha2.indexOf(c);
+    let idxUpper = alpha2Upper.indexOf(c);
+    let shift = nums[i] % 26;
+
+    if (idxLower !== -1) {
+      let idx = (i % 2 === 0) ? (idxLower - shift + 26) % 26 : (idxLower + shift) % 26;
+      step1 += alpha2[idx];
+    } else if (idxUpper !== -1) {
+      let idx = (i % 2 === 0) ? (idxUpper - shift + 26) % 26 : (idxUpper + shift) % 26;
+      step1 += alpha2Upper[idx];
+    } else {
+      let dIdx = digits.indexOf(c);
+      if (dIdx !== -1) {
+        let dShift = nums[i] % 10;
+        let newIdx = (i % 2 === 0) ? (dIdx - dShift + 10) % 10 : (dIdx + dShift) % 10;
+        step1 += digits[newIdx];
+      } else {
+        step1 += c;
+      }
+    }
+  }
+
+  let original = '';
+  for (let i = 0; i < step1.length; i++) {
+    let c = step1[i];
+
+    if (alphabet.includes(c) || alphabetUpper.includes(c)) {
+      original += vigenere(c, vigKey[i], alpha1, true);
+    } else if (symbols.includes(c)) {
+      let idx = symbols.indexOf(c);
+      let kIdx = symbols.indexOf(symKey[i]);
+      original += symbols[(idx - kIdx + symbols.length) % symbols.length];
+    } else {
+      original += c;
+    }
+  }
+
+  document.getElementById("decrypted").innerText = original;
+}
+
+function copyText(id) {
+  let text = document.getElementById(id).innerText;
+
+  // Try modern clipboard API first
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  let textarea = document.createElement("textarea");
+  textarea.value = text;
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand("copy");
+    alert("Copied!");
+  } catch (err) {
+    alert("Copy failed: " + err);
+  }
+  document.body.removeChild(textarea);
+}
+</script>
+</body>
+</html>
