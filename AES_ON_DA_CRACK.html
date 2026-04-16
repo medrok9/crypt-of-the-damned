@@ -137,26 +137,40 @@ function loadCrackFile(event) {
     try {
       const data = JSON.parse(e.target.result);
 
-      console.log("Loaded file:", data);
-
-      if (!data.ct || !data.iv || !data.jwk || !data.chaos) {
-        alert("Corrupted .crack file (missing fields)");
+      if (!data.ct || !data.key) {
+        alert("Corrupted .crack file (missing ct/key)");
         return;
       }
 
-      document.getElementById("encrypted").innerText = data.ct;
-      document.getElementById("keyInput").value = JSON.stringify(data);
+  
+      const decoded = JSON.parse(atob(data.key));
 
-      alert("Loaded successfully ✔ Ready to decrypt");
+      console.log("DECODED KEY:", decoded);
+
+      if (!decoded.iv || !decoded.jwk || !decoded.chaos) {
+        alert("Corrupted key structure inside file");
+        return;
+      }
+
+     
+      document.getElementById("encrypted").innerText = data.ct;
+      document.getElementById("keyInput").value = data.key;
+
+      document.getElementById("status").innerText =
+        "Loaded ✔ Ready to decrypt";
+
+      alert("File loaded successfully ✔");
 
     } catch (err) {
-      alert("Invalid JSON .crack file");
+      console.log(err);
+      alert("Invalid .crack file");
     }
   };
 
   reader.readAsText(file);
-}  
+}
 
+  
 function shuffle(str){
   return str.split('').sort(()=>Math.random()-0.5).join('');
 }
