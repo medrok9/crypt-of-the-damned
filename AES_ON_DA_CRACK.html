@@ -100,6 +100,7 @@ button:active {
 </div>
 
 <script>
+  let lastBlob = null;
 const alphabet = "abcdefghijklmnopqrstuvwxyz";
 const digits = "0123456789";
 const symbols = "!@#$%^&*()-_=+[]{};:'\"\\|,.<>/?`~";
@@ -144,29 +145,25 @@ function loadCrackFile(event) {
     try {
       const data = JSON.parse(e.target.result);
 
-      if (!data.ct || !data.key) {
-        alert("Invalid .crack file");
+      
+      if (!data.ct || !data.iv || !data.jwk || !data.chaos) {
+        alert("Corrupted .crack file");
         return;
       }
 
-      
       document.getElementById("encrypted").innerText = data.ct;
-      document.getElementById("keyInput").value = data.key;
-
-      
-      document.getElementById("input").value = "";
+      document.getElementById("keyInput").value = btoa(JSON.stringify(data));
 
       document.getElementById("status").innerText =
         "Loaded ✔ Ready to decrypt";
 
     } catch (err) {
-      alert("Corrupted .crack file");
+      alert("Invalid .crack file");
     }
   };
 
   reader.readAsText(file);
-}
-  
+}  
   
 
 function shuffle(str){
@@ -285,6 +282,8 @@ async function encrypt(){
     jwk,
     chaos
   };
+
+  lastBlob = blob;
 
   document.getElementById("encrypted").innerText=blob.ct;
   document.getElementById("key").innerText=btoa(JSON.stringify(blob));
