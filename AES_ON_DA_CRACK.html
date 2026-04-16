@@ -137,28 +137,22 @@ function loadCrackFile(event) {
     try {
       const data = JSON.parse(e.target.result);
 
-     
-      if (!data.ct || !data.iv || !data.jwk || !data.chaos) {
-        alert("Corrupted .crack file (invalid structure)");
+      if (!data.ct || !data.iv || !data.payload) {
+        alert("Invalid .crack file");
         return;
       }
 
-     
       document.getElementById("encrypted").innerText = data.ct;
 
-   
+    
       document.getElementById("keyInput").value =
-  data.ct + "|" + data.iv + "|" + btoa(JSON.stringify({
-    jwk: data.jwk,
-    chaos: data.chaos
-  }));
+        data.ct + "|" + data.iv + "|" + data.payload;
 
       document.getElementById("status").innerText =
         "Loaded ✔ Ready to decrypt";
 
     } catch (err) {
-      console.log(err);
-      alert("Invalid .crack file");
+      alert("Corrupted file");
     }
   };
 
@@ -278,8 +272,10 @@ let jwk = await crypto.subtle.exportKey("jwk", key);
 let blob = {
   ct: toB64(new Uint8Array(ct)),
   iv: toB64(iv),
-  jwk,
-  chaos
+  payload: btoa(JSON.stringify({
+    jwk,
+    chaos
+  }))
 };
 
 lastBlob = blob;
@@ -321,11 +317,9 @@ async function decrypt(){
     ["decrypt"]
   );
 
-  
   let ivBytes = fromB64(iv);
   let ctBytes = fromB64(ct);
 
-  
   let dec = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: ivBytes },
     key,
@@ -334,7 +328,6 @@ async function decrypt(){
 
   let chaosText = new TextDecoder().decode(dec);
 
- 
   let out = chaosDecrypt(chaosText, chaosData);
 
   document.getElementById("decrypted").innerText = out;
@@ -342,6 +335,7 @@ async function decrypt(){
   console.assert(out.length >= 0, "decrypt ok");
 }
 
+  
 function copyOutput(id) {
   const text = document.getElementById(id).innerText || "";
 
