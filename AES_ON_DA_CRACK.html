@@ -82,9 +82,12 @@ button:active {
 <button onclick="encrypt()">Encrypt</button>
 <button onclick="decrypt()">Decrypt</button>
 <button onclick="downloadCrack()">Download .crack File</button>
+  <button onclick="document.getElementById('crackFileInput').click()">
+  Choose .crack File
+</button>
 </div>
 <input id="keyInput" placeholder="Paste key">
-  <input type="file" accept=".crack" onchange="loadCrackFile(event)">
+  <input id="crackFileInput" type="file" accept=".crack" style="display:none" onchange="loadCrackFile(event)">
 
 <button onclick="copyOutput('encrypted')">Copy Encrypted</button>
 <button onclick="copyOutput('key')">Copy Key</button>
