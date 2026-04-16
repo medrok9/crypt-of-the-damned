@@ -105,34 +105,36 @@ const digits = "0123456789";
 const symbols = "!@#$%^&*()-_=+[]{};:'\"\\|,.<>/?`~";
 
   function downloadCrack() {
-  const encrypted = document.getElementById("encrypted").innerText;
   const key = document.getElementById("key").innerText;
 
-  if (!encrypted || !key) {
+  if (!key) {
     alert("Nothing to download yet.");
     return;
   }
 
-  const payload = {
-    encrypted,
-    key,
-    version: 1
-  };
+  try {
+    const blob = JSON.parse(atob(key));
 
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: "application/octet-stream"
-  });
+    const payload = {
+      encrypted: blob.ct, 
+      key,
+      version: 2
+    };
 
-  const url = URL.createObjectURL(blob);
+    const file = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json"
+    });
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "message.crack";
-  document.body.appendChild(a);
-  a.click();
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "message.crack";
+    a.click();
+    URL.revokeObjectURL(url);
 
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  } catch (e) {
+    alert("Invalid key data.");
+  }
 }
 
 
@@ -147,10 +149,20 @@ function loadCrackFile(event) {
     try {
       const data = JSON.parse(e.target.result);
 
-      document.getElementById("encrypted").innerText = data.encrypted || "";
-      document.getElementById("key").innerText = data.key || "";
+      if (!data.key) throw new Error("Missing key");
+
+     
+      document.getElementById("keyInput").value = data.key;
+
+      
+      document.getElementById("key").innerText = data.key;
+
+      
+      const blob = JSON.parse(atob(data.key));
+      document.getElementById("encrypted").innerText = blob.ct;
 
       alert("File loaded successfully!");
+
     } catch (err) {
       alert("Invalid .crack file");
     }
