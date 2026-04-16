@@ -81,8 +81,10 @@ button:active {
 <div class="row">
 <button onclick="encrypt()">Encrypt</button>
 <button onclick="decrypt()">Decrypt</button>
+<button onclick="downloadCrack()">Download .crack File</button>
 </div>
 <input id="keyInput" placeholder="Paste key">
+  <input type="file" accept=".crack" onchange="loadCrackFile(event)">
 
 <button onclick="copyOutput('encrypted')">Copy Encrypted</button>
 <button onclick="copyOutput('key')">Copy Key</button>
@@ -98,6 +100,64 @@ button:active {
 const alphabet = "abcdefghijklmnopqrstuvwxyz";
 const digits = "0123456789";
 const symbols = "!@#$%^&*()-_=+[]{};:'\"\\|,.<>/?`~";
+
+  function downloadCrack() {
+  const encrypted = document.getElementById("encrypted").innerText;
+  const key = document.getElementById("key").innerText;
+
+  if (!encrypted || !key) {
+    alert("Nothing to download yet.");
+    return;
+  }
+
+  const payload = {
+    encrypted,
+    key,
+    version: 1
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/octet-stream"
+  });
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "message.crack";
+  document.body.appendChild(a);
+  a.click();
+
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
+  
+function loadCrackFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+
+      document.getElementById("encrypted").innerText = data.encrypted || "";
+      document.getElementById("key").innerText = data.key || "";
+
+      alert("File loaded successfully!");
+    } catch (err) {
+      alert("Invalid .crack file");
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+  
+  
 
 function shuffle(str){
   return str.split('').sort(()=>Math.random()-0.5).join('');
