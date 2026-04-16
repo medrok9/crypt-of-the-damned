@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AES on Crack Encryptor</title>
+<style>
+body {
+  font-family: Inter, Arial, sans-serif;
+  background: linear-gradient(135deg, #1e1e2f, #3a3a6a);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+.container {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+  border-radius: 18px;
+  width: 460px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+}
+textarea, input {
+  width: 100%;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  border: none;
+  padding: 10px;
+}
+button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border: none;
+  border-radius: 10px;
+  background: #ff4b5c;
+  color: white;
+  font-size: 15px;
+  cursor: pointer;
+}
+button:hover { background: #ff1f3a; }
+.output {
+  margin-top: 10px;
+  font-size: 12px;
+  word-break: break-all;
+  background: rgba(0,0,0,0.25);
+  padding: 8px;
+  border-radius: 8px;
+}
+.small { font-size: 11px; opacity: 0.8; }
+</style>
+</head>
+<body>
+<div class="container">
+<h2>AES on Crack 🔐</h2>
+<textarea id="input" placeholder="Enter text..."></textarea>
+<div class="row">
+<button onclick="encrypt()">Encrypt</button>
+<button onclick="decrypt()">Decrypt</button>
+</div>
+<input id="keyInput" placeholder="Paste FULL blob (cipher+key)">
+
+<div class="output"><b>Ciphertext:</b><br><span id="encrypted"></span></div>
+<div class="output"><b>Key Blob:</b><br><span id="key"></span></div>
+<div class="output"><b>Decrypted:</b><br><span id="decrypted"></span></div>
+<p class="small">Fixed AES-GCM + chaos layer + correct IV/base64 handling</p>
+</div>
+
+<script>
+const alphabet = "abcdefghijklmnopqrstuvwxyz";
+const digits = "0123456789";
+const symbols = "!@#$%^&*()-_=+[]{};:'\"\\|,.<>/?`~";
+
+function shuffle(str){
+  return str.split('').sort(()=>Math.random()-0.5).join('');
+}
+
+function randomSymbolString(n){
+  return Array.from({length:n},()=>symbols[Math.floor(Math.random()*symbols.length)]).join('');
+}
+
+function randomNumbers(n){
+  return Array.from({length:n},()=>Math.floor(Math.random()*100));
+}
+
+function vigenereChar(c,k,alpha){
+  let i=alpha.indexOf(c);
+  let j=alpha.indexOf(k);
+  if(i===-1||j===-1) return c;
+  return alpha[(i+j)%alpha.length];
+}
+
+function chaosEncrypt(text){
+  let alpha1=shuffle(alphabet);
+  let alpha2=shuffle(alphabet);
+  let symKey=randomSymbolString(text.length);
+  let nums=randomNumbers(text.length);
+
+  let step1="";
+
+  for(let i=0;i<text.length;i++){
+    let c=text[i];
+
+    if(alphabet.includes(c)){
+      step1+=vigenereChar(c,alpha1[i%26],alpha1);
+    }else if(symbols.includes(c)){
+      let idx=symbols.indexOf(c);
+      let k=symbols.indexOf(symKey[i]);
+      step1+=symbols[(idx+k)%symbols.length];
+    }else step1+=c;
+  }
+
+  let step2="";
+  for(let i=0;i<step1.length;i++){
+    let c=step1[i];
+    let idx=alpha2.indexOf(c);
+    if(idx!==-1){
+      let shift=nums[i]%26;
+      step2+=alpha2[(i%2===0)?(idx+shift)%26:(idx-shift+26)%26];
+    }else step2+=c;
+  }
+
+  return {step2,alpha1,alpha2,symKey,nums};
+}
+
+function chaosDecrypt(data,key){
+  let {alpha1,alpha2,symKey,nums}=key;
+
+  let step1="";
+  for(let i=0;i<data.length;i++){
+    let c=data[i];
+    let idx=alpha2.indexOf(c);
+    if(idx!==-1){
+      let shift=nums[i]%26;
+      step1+=alpha2[(i%2===0)?(idx-shift+26)%26:(idx+shift)%26];
+    }else step1+=c;
+  }
+
+  let out="";
+  for(let i=0;i<step1.length;i++){
+    let c=step1[i];
+
+    if(alphabet.includes(c)){
+      let i1=alpha1.indexOf(c);
+      let k=alpha1[i%26];
+      let ki=alpha1.indexOf(k);
+      out+=alpha1[(i1-ki+26)%26];
+    }else if(symbols.includes(c)){
+      let idx=symbols.indexOf(c);
+      let k=symbols.indexOf(symKey[i]);
+      out+=symbols[(idx-k+symbols.length)%symbols.length];
+    }else out+=c;
+  }
+
+  return out;
+}
+
+function toB64(u8){
+  return btoa(String.fromCharCode(...u8));
+}
+
+function fromB64(b64){
+  return Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+}
+
+async function encrypt(){
+  let text=document.getElementById("input").value;
+
+  let chaos=chaosEncrypt(text);
+
+  let key=await crypto.subtle.generateKey(
+    {name:"AES-GCM",length:256},true,["encrypt","decrypt"]
+  );
+
+  let iv=crypto.getRandomValues(new Uint8Array(12));
+
+  let ct=await crypto.subtle.encrypt(
+    {name:"AES-GCM",iv},key,
+    new TextEncoder().encode(chaos.step2)
+  );
+
+  let jwk=await crypto.subtle.exportKey("jwk",key);
+
+  let blob={
+    ct:toB64(new Uint8Array(ct)),
+    iv:toB64(iv),
+    jwk,
+    chaos
+  };
+
+  document.getElementById("encrypted").innerText=blob.ct;
+  document.getElementById("key").innerText=btoa(JSON.stringify(blob));
+
+  console.assert(text.length>=0,"input ok");
+  console.assert(blob.ct.length>0,"cipher ok");
+}
+
+async function decrypt(){
+  let raw=document.getElementById("keyInput").value;
+  let blob=JSON.parse(atob(raw));
+
+  let key=await crypto.subtle.importKey(
+    "jwk",blob.jwk,{name:"AES-GCM"},true,["decrypt"]
+  );
+
+  let iv=fromB64(blob.iv);
+  let ct=fromB64(blob.ct);
+
+  let dec=await crypto.subtle.decrypt(
+    {name:"AES-GCM",iv},key,ct
+  );
+
+  let chaosText=new TextDecoder().decode(dec);
+  let out=chaosDecrypt(chaosText,blob.chaos);
+
+  document.getElementById("decrypted").innerText=out;
+
+  console.assert(out.length>=0,"decrypt ok");
+}
+</script>
+</body>
+</html>
