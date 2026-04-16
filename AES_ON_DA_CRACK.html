@@ -137,29 +137,21 @@ function loadCrackFile(event) {
     try {
       const data = JSON.parse(e.target.result);
 
-      if (!data.ct || !data.key) {
-        alert("Corrupted .crack file (missing ct/key)");
-        return;
-      }
-
-  
-      const decoded = JSON.parse(atob(data.key));
-
-      console.log("DECODED KEY:", decoded);
-
-      if (!decoded.iv || !decoded.jwk || !decoded.chaos) {
-        alert("Corrupted key structure inside file");
+     
+      if (!data.ct || !data.iv || !data.jwk || !data.chaos) {
+        alert("Corrupted .crack file (invalid structure)");
         return;
       }
 
      
       document.getElementById("encrypted").innerText = data.ct;
-      document.getElementById("keyInput").value = data.key;
+
+   
+      document.getElementById("keyInput").value =
+        btoa(JSON.stringify(data));
 
       document.getElementById("status").innerText =
         "Loaded ✔ Ready to decrypt";
-
-      alert("File loaded successfully ✔");
 
     } catch (err) {
       console.log(err);
@@ -169,7 +161,6 @@ function loadCrackFile(event) {
 
   reader.readAsText(file);
 }
-
   
 function shuffle(str){
   return str.split('').sort(()=>Math.random()-0.5).join('');
